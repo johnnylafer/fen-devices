@@ -93,7 +93,10 @@ function stats() {
     type: 'stats',
     boops: q.boopCount.get().c,
     devices: q.listDevices.all().map(d => ({
-      ...d, online: deviceSockets.has(d.id) && deviceSockets.get(d.id).size > 0,
+      ...d,
+      // online = live WS OR polled via HTTP in the last 15 s
+      online: (deviceSockets.has(d.id) && deviceSockets.get(d.id).size > 0) ||
+              (d.last_seen && Date.now() - d.last_seen < 15_000),
       boops: q.boopCountDevice.get(d.id).c,
     })),
   };
@@ -130,6 +133,22 @@ app.post('/api/message', async (req, reply) => {
 });
 
 app.get('/api/messages', async (req) => q.recentMsgs.all(Number(req.query.limit || 20)));
+
+// device poll — lightweight alternative to WS for the badges themselves.
+// Touches presence, returns totals + the latest message in one round trip.
+app.get('/api/poll', async (req) => {
+  const id = String(req.query.device || '');
+  if (id) {
+    if (!q.getDevice.get(id)) q.upsertDevice.run(id, id, randomBytes(8).toString('hex'), Date.now(), Date.now());
+    q.touchDevice.run(Date.now(), req.query.fw || null, id);
+  }
+  const msg = q.recentMsgs.all(1)[0] || null;
+  return {
+    boops: q.boopCount.get().c,
+    deviceBoops: id ? q.boopCountDevice.get(id).c : 0,
+    msg: msg ? { text: msg.text, from: msg.from_name, ts: msg.ts } : null,
+  };
+});
 
 // ---------- WebSocket ----------
 app.get('/ws', { websocket: true }, (socket, req) => {
