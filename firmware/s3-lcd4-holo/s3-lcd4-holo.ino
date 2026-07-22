@@ -22,6 +22,7 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <AnimatedGIF.h>
+#include <JPEGDEC.h>
 #include "WS_CH32_IO.h"
 #include "img_fen_220.h"
 #include "img_qr_300.h"
@@ -200,18 +201,76 @@ void scrStickers(uint32_t t) {
   }
 }
 
+// --- live photo wall: people post pics from the PWA, they land here ---
+uint16_t *photoFB = nullptr;                // 320x320 decode target
+int photoW = 0, photoH = 0;
+long photoSeen = 0;                         // last photoTs shown
+JPEGDEC jpegDec;
+int JPEGDraw(JPEGDRAW *pDraw) {
+  if (!photoFB) return 1;
+  for (int yy = 0; yy < pDraw->iHeight; yy++) {
+    int fy = pDraw->y + yy;
+    if (fy < 0 || fy >= 320) continue;
+    for (int xx = 0; xx < pDraw->iWidth; xx++) {
+      int fx = pDraw->x + xx;
+      if (fx >= 0 && fx < 320) photoFB[fy * 320 + fx] = pDraw->pPixels[yy * pDraw->iWidth + xx];
+    }
+  }
+  return 1;
+}
+void fetchPhoto() {
+  if (!wifiOk) return;
+  WiFiClientSecure client; client.setInsecure();
+  HTTPClient http; http.setTimeout(6000);
+  if (!http.begin(client, String("https://") + HUB_HOST + "/photo.jpg")) return;
+  if (http.GET() == 200) {
+    int len = http.getSize();
+    if (len > 0 && len < 260000) {
+      uint8_t *buf = (uint8_t*)heap_caps_malloc(len, MALLOC_CAP_SPIRAM);
+      if (buf) {
+        WiFiClient *s = http.getStreamPtr();
+        int got = 0;
+        while (got < len && http.connected()) {
+          int r = s->readBytes(buf + got, len - got);
+          if (r <= 0) break; got += r;
+        }
+        if (got == len) {
+          if (!photoFB) photoFB = (uint16_t*)heap_caps_calloc(320 * 320, 2, MALLOC_CAP_SPIRAM);
+          if (photoFB && jpegDec.openRAM(buf, len, JPEGDraw)) {
+            jpegDec.setPixelType(RGB565_LITTLE_ENDIAN);
+            memset(photoFB, 0, 320 * 320 * 2);
+            photoW = jpegDec.getWidth(); photoH = jpegDec.getHeight();
+            jpegDec.decode(0, 0, 0);
+            jpegDec.close();
+          }
+        }
+        free(buf);
+      }
+    }
+  }
+  http.end();
+}
+
 void scrFilm(uint32_t t) {
-  header("POLAROIDS", t);
+  header(photoFB ? "PHOTO WALL - LIVE" : "POLAROIDS", t);
   // filmstrip sprockets
   for (int y = 60; y < 460; y += 40) {
     gfx->fillRoundRect(6, y, 18, 24, 4, 0x2124);
     gfx->fillRoundRect(456, y, 18, 24, 4, 0x2124);
   }
-  float b1 = sinf(t / 700.0f) * 7, b2 = sinf(t / 700.0f + 2.1f) * 7;
-  gfx->draw16bitRGBBitmap(38,  90 + (int)b1, (uint16_t*)pol1, POL1_W, POL1_H);
-  gfx->draw16bitRGBBitmap(230, 140 + (int)b2, (uint16_t*)pol2, POL2_W, POL2_H);
-  gfx->setTextSize(2); gfx->setTextColor(C_DIM);
-  gfx->setCursor(108, 434); gfx->print("con memories loading...");
+  if (photoFB) {
+    float bob = sinf(t / 700.0f) * 5;
+    int px = 80, py = 66 + (int)bob;                            // 320x320 buffer centred
+    gfx->fillRect(px - 12, py - 12, 344, 366, 0xFFFF);          // polaroid frame
+    gfx->draw16bitRGBBitmap(px, py, photoFB, 320, 320);
+    holoText("from the con floor!", 116, 420, 2, t);
+  } else {
+    float b1 = sinf(t / 700.0f) * 7, b2 = sinf(t / 700.0f + 2.1f) * 7;
+    gfx->draw16bitRGBBitmap(38,  90 + (int)b1, (uint16_t*)pol1, POL1_W, POL1_H);
+    gfx->draw16bitRGBBitmap(230, 140 + (int)b2, (uint16_t*)pol2, POL2_W, POL2_H);
+    gfx->setTextSize(2); gfx->setTextColor(C_DIM);
+    gfx->setCursor(90, 434); gfx->print("post a pic from the QR page!");
+  }
 }
 
 // --- CINEMA (GIF -> persistent PSRAM framebuffer, blitted every render) ---
@@ -339,6 +398,8 @@ void poll() {
         if (nb != boopTotal) { if (boopTotal >= 0) burst = 1.0f; boopTotal = nb; }
         lastMsgFrom = (const char*)(doc["msg"]["from"] | "");
         lastMsg = (const char*)(doc["msg"]["text"] | "");
+        long pts = doc["photoTs"] | 0;
+        if (pts > 0 && pts != photoSeen) { photoSeen = pts; fetchPhoto(); }
       }
     }
     http.end();
