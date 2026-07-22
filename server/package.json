@@ -1,0 +1,19 @@
+{
+  "name": "fen-devices-server",
+  "version": "1.0.0",
+  "description": "fen.dog device hub — boop counter, live messages, presence for Fen's con badges",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0",
+    "@fastify/websocket": "^11.0.1",
+    "@fastify/static": "^8.0.3",
+    "@fastify/cors": "^10.0.1",
+    "better-sqlite3": "^11.8.0"
+  },
+  "engines": { "node": ">=22" }
+}

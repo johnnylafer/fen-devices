@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>fen.dog · device hub</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#060507">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  @font-face{font-family:'Space Grotesk';src:local('Space Grotesk');font-weight:400 700}
+  :root{
+    --bg:#060507; --ink:#f2f1ef; --dim:rgba(255,255,255,.55);
+    --holo:linear-gradient(115deg,#78CDCF,#6EC1E4,#b24bff,#ff8cc8,#ffd737,#78CDCF);
+    --tq:#78CDCF; --gold:#ffd737; --purple:#b24bff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;
+    min-height:100dvh;padding:max(env(safe-area-inset-top),16px) 18px 32px;
+    background-image:
+      radial-gradient(60vw 34vh at 12% -4%,rgba(120,205,207,.16),transparent 60%),
+      radial-gradient(60vw 34vh at 95% 8%,rgba(178,75,255,.13),transparent 60%),
+      radial-gradient(80vw 50vh at 50% 110%,rgba(110,193,228,.10),transparent 60%);
+    background-attachment:fixed;
+  }
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .logo{font-weight:700;font-size:20px;letter-spacing:.02em}
+  .logo b{background:var(--holo);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .pill{font-size:11px;letter-spacing:.14em;color:var(--tq);border:1px solid rgba(120,205,207,.35);border-radius:99px;padding:4px 10px}
+  .card{
+    position:relative;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);
+    border-radius:18px;padding:18px;margin-bottom:14px;backdrop-filter:blur(8px);
+  }
+  .card::before{content:'';position:absolute;inset:0;border-radius:18px;padding:1px;
+    background:var(--holo);opacity:.25;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+  h2{font-size:12px;font-weight:700;letter-spacing:.18em;color:var(--dim);margin-bottom:12px}
+  /* boop */
+  .boopwrap{text-align:center;padding:8px 0 4px}
+  .count{font-size:56px;font-weight:700;line-height:1;
+    background:var(--holo);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .count-label{font-size:12px;letter-spacing:.2em;color:var(--dim);margin-top:4px}
+  .boopbtn{
+    margin-top:16px;width:130px;height:130px;border-radius:50%;border:none;cursor:pointer;
+    font-family:inherit;font-weight:700;font-size:20px;color:#04110f;
+    background:var(--holo);background-size:250% 250%;animation:sheen 6s linear infinite;
+    box-shadow:0 6px 30px rgba(120,205,207,.35);transition:transform .12s;
+  }
+  .boopbtn:active{transform:scale(.92)}
+  @keyframes sheen{0%{background-position:0% 50%}100%{background-position:250% 50%}}
+  .who{margin-top:14px;width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;color:var(--ink);font-family:inherit;font-size:15px;padding:12px 14px;text-align:center}
+  .who::placeholder{color:rgba(255,255,255,.35)}
+  /* devices */
+  .dev{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .dev:last-child{border-bottom:none}
+  .dev .nm{font-weight:700;font-size:15px}
+  .dev .meta{font-size:12px;color:var(--dim)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:8px;vertical-align:1px}
+  .dot.on{background:#4bff72;box-shadow:0 0 8px #4bff72aa}
+  .devboops{font-weight:700;color:var(--gold);font-size:15px}
+  /* message */
+  textarea{width:100%;min-height:70px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;color:var(--ink);font-family:inherit;font-size:15px;padding:12px 14px;resize:vertical}
+  .row{display:flex;gap:10px;margin-top:10px}
+  select,.key{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;color:var(--ink);font-family:inherit;font-size:14px;padding:10px 12px}
+  .send{background:var(--holo);border:none;border-radius:12px;font-family:inherit;font-weight:700;
+    font-size:15px;color:#04110f;padding:10px 22px;cursor:pointer}
+  .feed{font-size:13px;color:var(--dim);max-height:150px;overflow-y:auto}
+  .feed div{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .feed b{color:var(--tq);font-weight:700}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(80px);
+    background:rgba(20,22,26,.95);border:1px solid rgba(120,205,207,.4);color:var(--ink);
+    padding:12px 22px;border-radius:99px;font-weight:700;transition:transform .25s;z-index:9}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  footer{text-align:center;font-size:11px;letter-spacing:.14em;color:rgba(255,255,255,.3);margin-top:18px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><b>fen.dog</b> · hub</div>
+  <div class="pill" id="conn">CONNECTING…</div>
+</header>
+
+<div class="card">
+  <div class="boopwrap">
+    <div class="count" id="count">–</div>
+    <div class="count-label">TOTAL BOOPS</div>
+    <button class="boopbtn" id="boop">BOOP!</button>
+    <input class="who" id="who" maxlength="40" placeholder="your name / emoji (optional)">
+  </div>
+</div>
+
+<div class="card">
+  <h2>DEVICES</h2>
+  <div id="devices"><div class="meta" style="color:var(--dim);font-size:13px">loading…</div></div>
+</div>
+
+<div class="card">
+  <h2>SEND TO BADGE</h2>
+  <textarea id="msg" maxlength="200" placeholder="message to show on the badge screen…"></textarea>
+  <div class="row">
+    <select id="target"><option value="">all devices</option></select>
+    <button class="send" id="send">Send ✨</button>
+  </div>
+  <div class="row"><input class="key" id="key" type="password" placeholder="admin key"></div>
+</div>
+
+<div class="card">
+  <h2>LIVE FEED</h2>
+  <div class="feed" id="feed"></div>
+</div>
+
+<footer>AWOOSTRIA 2026 · FEN.DOG DEVICE HUB</footer>
+<div class="toast" id="toast">BOOP! 🐾</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const api = p => fetch(p).then(r=>r.json());
+let ws, wsTimer;
+
+function toast(t){ $('toast').textContent=t; $('toast').classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>$('toast').classList.remove('show'),1600); }
+
+function feed(html){ const d=document.createElement('div'); d.innerHTML=html;
+  $('feed').prepend(d); while($('feed').children.length>30) $('feed').lastChild.remove(); }
+
+function renderStats(s){
+  $('count').textContent = s.boops;
+  const wrap=$('devices'); wrap.innerHTML='';
+  const sel=$('target'); const cur=sel.value; sel.innerHTML='<option value="">all devices</option>';
+  for(const d of s.devices){
+    const el=document.createElement('div'); el.className='dev';
+    const seen=d.last_seen? new Date(d.last_seen).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : 'never';
+    el.innerHTML=`<div><div class="nm"><span class="dot ${d.online?'on':''}"></span>${d.name}</div>
+      <div class="meta">${d.online?'online now':'last seen '+seen}</div></div>
+      <div class="devboops">${d.boops} 🐾</div>`;
+    wrap.appendChild(el);
+    const o=document.createElement('option'); o.value=d.id; o.textContent=d.name; sel.appendChild(o);
+  }
+  sel.value=cur;
+}
+
+function connect(){
+  ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws?client=phone');
+  ws.onopen = ()=>{ $('conn').textContent='LIVE'; $('conn').style.color='#4bff72'; $('conn').style.borderColor='rgba(75,255,114,.4)'; };
+  ws.onclose = ()=>{ $('conn').textContent='RECONNECTING…'; $('conn').style.color=''; $('conn').style.borderColor='';
+    clearTimeout(wsTimer); wsTimer=setTimeout(connect, 2500); };
+  ws.onmessage = e=>{
+    const m=JSON.parse(e.data);
+    if(m.type==='stats') renderStats(m);
+    if(m.type==='boop'){ $('count').textContent=m.total; toast('BOOP! 🐾'+(m.who?' — '+m.who:''));
+      feed(`<b>boop</b> ${m.who||'someone'} ${m.device?('on '+m.device):''}`);
+      api('/api/stats').then(renderStats); }
+    if(m.type==='message') feed(`<b>msg</b> "${m.text}" → ${m.device||'all'}`);
+  };
+}
+connect();
+api('/api/stats').then(renderStats);
+
+$('boop').onclick = async ()=>{
+  navigator.vibrate?.(30);
+  await fetch('/api/boop',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({who:$('who').value||''})});
+};
+$('send').onclick = async ()=>{
+  const r = await fetch('/api/message',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({device:$('target').value||null,text:$('msg').value,key:$('key').value})});
+  if(r.ok){ toast('sent ✨'); $('msg').value=''; localStorage.setItem('fenkey',$('key').value); }
+  else toast(r.status===401?'wrong key 🔒':'error');
+};
+$('key').value = localStorage.getItem('fenkey')||'';
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+</script>
+</body>
+</html>
