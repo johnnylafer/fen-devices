@@ -36,7 +36,9 @@
 #define C_PINK   0xFC79
 
 // ---------- display: ST7789 172x320, offsets 34/0, IPS inversion ----------
-Arduino_DataBus *bus = new Arduino_ESP32SPI(
+// Arduino_ESP32SPI is guarded off for the C6 target in GFX 1.5.3 — Arduino_HWSPI
+// drives the same hardware SPI through the Arduino SPI API and supports C6.
+Arduino_DataBus *bus = new Arduino_HWSPI(
     15 /*DC*/, 14 /*CS*/, 7 /*SCK*/, 6 /*MOSI*/, GFX_NOT_DEFINED /*MISO*/);
 Arduino_GFX *gfx = new Arduino_ST7789(
     bus, 21 /*RST*/, 0 /*rotation: portrait 172x320*/, true /*IPS*/,
