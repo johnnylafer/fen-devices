@@ -42,7 +42,7 @@ Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     1, 10, 8, 50,              // hsync pol/fp/pw/bp
     1, 10, 8, 20);             // vsync pol/fp/pw/bp
 Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
-    480, 480, rgbpanel, 0 /*rotation*/, true /*auto_flush*/,
+    480, 480, rgbpanel, 2 /*rotation: 180° — matches lanyard orientation*/, true,
     bus, GFX_NOT_DEFINED /*RST*/,
     st7701_type1_init_operations, sizeof(st7701_type1_init_operations));
 
@@ -156,10 +156,20 @@ void draw() {
 }
 
 void boopFlash() {
-  for (int i = 0; i < 2; i++) {
-    gfx->fillScreen(C_PINK); delay(60);
-    gfx->fillScreen(C_BG); delay(40);
+  // expanding holo rings from the centre + a paw of dots — quick and cute
+  const uint16_t cols[4] = {C_PINK, C_PURPLE, C_TQ, C_GOLD};
+  for (int r = 20; r <= 300; r += 28) {
+    uint16_t c = cols[(r / 28) % 4];
+    gfx->drawCircle(240, 240, r, c);
+    gfx->drawCircle(240, 240, r + 1, c);
+    gfx->drawCircle(240, 240, r + 2, c);
+    delay(18);
   }
+  // paw-print burst
+  gfx->fillCircle(240, 258, 34, C_PINK);
+  gfx->fillCircle(206, 216, 15, C_PINK); gfx->fillCircle(240, 204, 16, C_PINK);
+  gfx->fillCircle(274, 216, 15, C_PINK);
+  delay(220);
   draw();
 }
 
@@ -240,6 +250,7 @@ void loop() {
     int16_t x[1], y[1];
     uint8_t n = touch.getPoint(x, y, 1);
     if (n > 0) {
+      x[0] = 479 - x[0]; y[0] = 479 - y[0];   // GT911 is panel-native; display runs rotation 2
       if (!tDown) { tDown = true; tDownX = x[0]; tDownY = y[0]; }   // finger down
       lastX = x[0]; lastY = y[0];                                    // track latest
     } else if (tDown) {                                              // finger up

@@ -49,3 +49,17 @@ If the hub URL changes: regenerate `qr-hub.png` (api.qrserver.com), rerun
 - On the 4", `WS_CH32_IO::begin()` **must** run before `gfx->begin()` — the expander
   powers/resets the panel. Skipping it = black screen.
 - HTTPS uses `setInsecure()` (no cert pinning) — fine for a boop counter.
+
+## Versions (4" badge)
+| sketch | what | state |
+|---|---|---|
+| `s3-lcd4/` | **v1.1 classic** — static screens, ring-burst boop, 180° fixed | binary exported |
+| `s3-lcd4-holo/` | **v2 HOLO-MOTION** — PSRAM canvas ~30fps: particles, shimmer text, animated wipes, sticker picker (tap to zoom), polaroid film, FEN TV (animated GIF), burst boop | **flashed on the badge** |
+| `s3-lcd4-kura/` | **v2 Kura edition** — same engine, Kura's neo-gothic green/gold, his art/stickers/GIF, AP `KURA-BADGE`, reports as `lcd4-kura` | binary exported |
+
+Flash any exported version without rebuilding:
+```bash
+ESPTOOL=$(find ~/Library/Arduino15/packages/esp32/tools/esptool_py -name esptool | head -1)
+"$ESPTOOL" --chip esp32s3 --port /dev/cu.usbmodem* write_flash 0x0 \
+  firmware/<sketch>/build/esp32.esp32.esp32s3/<sketch>.ino.merged.bin
+```
