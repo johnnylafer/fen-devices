@@ -112,6 +112,15 @@
 </div>
 
 <div class="card">
+  <h2>SEND A PHOTO TO THE BADGE 📸</h2>
+  <input type="file" id="photo" accept="image/*" capture="environment" style="display:none">
+  <div class="row">
+    <button class="send" style="flex:1" onclick="document.getElementById('photo').click()">Pick / take a photo</button>
+  </div>
+  <div id="photostat" style="font-size:12px;color:var(--dim);margin-top:8px"></div>
+</div>
+
+<div class="card">
   <h2>LIVE FEED</h2>
   <div class="feed" id="feed"></div>
 </div>
@@ -175,6 +184,21 @@ $('send').onclick = async ()=>{
   else toast(r.status===401?'wrong key 🔒':'error');
 };
 $('key').value = localStorage.getItem('fenkey')||'';
+$('photo').onchange = async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  $('photostat').textContent = 'shrinking…';
+  const img = await createImageBitmap(f);
+  const S = 320, c = document.createElement('canvas');
+  const sc = Math.min(S/img.width, S/img.height);
+  c.width = Math.round(img.width*sc); c.height = Math.round(img.height*sc);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  const jpeg = c.toDataURL('image/jpeg', 0.72);
+  $('photostat').textContent = 'sending…';
+  const r = await fetch('/api/photo',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({jpeg, who:$('who').value||''})});
+  $('photostat').textContent = r.ok ? 'on the badge in a few seconds! ✨' : 'failed — try a smaller pic';
+  if(r.ok) toast('photo sent 📸');
+};
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 </script>
 </body>

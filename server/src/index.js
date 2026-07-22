@@ -134,6 +134,28 @@ app.post('/api/message', async (req, reply) => {
 
 app.get('/api/messages', async (req) => q.recentMsgs.all(Number(req.query.limit || 20)));
 
+// ---------- photo wall: visitors post a pic, badges show it ----------
+import { writeFileSync, existsSync, statSync, readFileSync } from 'node:fs';
+const PHOTO = join(DATA_DIR, 'photo.jpg');
+let photoTs = existsSync(PHOTO) ? statSync(PHOTO).mtimeMs | 0 : 0;
+
+app.post('/api/photo', { bodyLimit: 300_000 }, async (req, reply) => {
+  const { jpeg, who = '' } = req.body || {};          // base64 jpeg, ≤ ~200 KB
+  if (!jpeg) return reply.code(400).send({ error: 'jpeg required' });
+  const buf = Buffer.from(String(jpeg).replace(/^data:image\/jpeg;base64,/, ''), 'base64');
+  if (buf.length < 100 || buf.length > 250_000 || buf[0] !== 0xFF || buf[1] !== 0xD8)
+    return reply.code(400).send({ error: 'not a valid jpeg' });
+  writeFileSync(PHOTO, buf);
+  photoTs = Date.now();
+  const payload = { type: 'photo', ts: photoTs, who: String(who).slice(0, 40) };
+  pushToPhones(payload); pushToAllDevices(payload);
+  return { ok: true, ts: photoTs };
+});
+app.get('/photo.jpg', async (req, reply) => {
+  if (!existsSync(PHOTO)) return reply.code(404).send({ error: 'no photo yet' });
+  reply.type('image/jpeg').send(readFileSync(PHOTO));
+});
+
 // device poll — lightweight alternative to WS for the badges themselves.
 // Touches presence, returns totals + the latest message in one round trip.
 app.get('/api/poll', async (req) => {
@@ -147,6 +169,7 @@ app.get('/api/poll', async (req) => {
     boops: q.boopCount.get().c,
     deviceBoops: id ? q.boopCountDevice.get(id).c : 0,
     msg: msg ? { text: msg.text, from: msg.from_name, ts: msg.ts } : null,
+    photoTs,                                     // badges fetch /photo.jpg when this changes
   };
 });
 
