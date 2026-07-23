@@ -206,7 +206,8 @@ uint16_t *photoFB = nullptr;                // 320x320 decode target
 int photoW = 0, photoH = 0;
 long long photoSeen = 0;                    // last photoTs shown (64-bit! epoch-ms overflows long)
 bool firstSync = true;                      // suppress pop-ups on the boot-time sync
-String pollDbg = "no poll yet";             // shown small on the MESSAGES screen
+String pollDbg = "no poll yet";
+String photoDbg = "-";             // shown small on the MESSAGES screen
 JPEGDEC jpegDec;
 int JPEGDraw(JPEGDRAW *pDraw) {
   if (!photoFB) return 1;
@@ -221,7 +222,7 @@ int JPEGDraw(JPEGDRAW *pDraw) {
   return 1;
 }
 void fetchPhoto() {
-  if (!wifiOk) return;
+  if (!wifiOk) { photoDbg="nowifi"; return; }
   WiFiClientSecure client; client.setInsecure();
   HTTPClient http; http.setTimeout(6000);
   if (!http.begin(client, String("https://") + HUB_HOST + "/photo.jpg")) return;
@@ -236,14 +237,16 @@ void fetchPhoto() {
           int r = s->readBytes(buf + got, len - got);
           if (r <= 0) break; got += r;
         }
+        photoDbg = String("got") + got + "/" + len;
         if (got == len) {
           if (!photoFB) photoFB = (uint16_t*)heap_caps_calloc(320 * 320, 2, MALLOC_CAP_SPIRAM);
           if (photoFB && jpegDec.openRAM(buf, len, JPEGDraw)) {
             jpegDec.setPixelType(RGB565_LITTLE_ENDIAN);
             memset(photoFB, 0, 320 * 320 * 2);
             photoW = jpegDec.getWidth(); photoH = jpegDec.getHeight();
-            jpegDec.decode(0, 0, 0);
+            int rc = jpegDec.decode(0, 0, 0);
             jpegDec.close();
+            photoDbg = String("jpg rc") + rc + " " + photoW + "x" + photoH;
           }
         }
         free(buf);
@@ -251,6 +254,7 @@ void fetchPhoto() {
     }
   }
   http.end();
+  if (photoDbg=="-") photoDbg="done";
 }
 
 void scrFilm(uint32_t t) {
@@ -412,7 +416,7 @@ void poll() {
         long long pts = doc["photoTs"].as<long long>();
         bool newPhoto = (pts > 0 && pts != photoSeen);
         if (newPhoto) { photoSeen = pts; fetchPhoto(); }
-        pollDbg = String("ok b:") + nb + " m:" + nm.length() + " p:" + (long)(pts % 100000);
+        pollDbg = String("ok b:") + nb + " m:" + nm.length() + " p:" + (long)(pts % 100000) + " f:" + photoDbg;
         // live pop-ups (not on the boot-time sync)
         if (!firstSync) {
           if (newPhoto && photoFB) wipeTo(3);
