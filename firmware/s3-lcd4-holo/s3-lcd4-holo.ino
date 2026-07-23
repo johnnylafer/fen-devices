@@ -371,8 +371,7 @@ void render() {
     case 6: scrQR(t); break;
     case 7: scrMsg(t); break;
   }
-  scanlines();
-  gfx->flush();
+  gfx->flush();   // (scanline overlay removed — read as artifacts on the real panel)
 }
 
 void wipeTo(int next) {
