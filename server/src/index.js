@@ -136,7 +136,7 @@ app.get('/api/messages', async (req) => q.recentMsgs.all(Number(req.query.limit 
 // ---------- photo wall: visitors post a pic, badges show it ----------
 import { writeFileSync, existsSync, statSync, readFileSync } from 'node:fs';
 const PHOTO = join(DATA_DIR, 'photo.jpg');
-let photoTs = existsSync(PHOTO) ? statSync(PHOTO).mtimeMs | 0 : 0;
+let photoTs = existsSync(PHOTO) ? Math.trunc(statSync(PHOTO).mtimeMs) : 0;  // no 32-bit truncation!
 
 app.post('/api/photo', { bodyLimit: 300_000 }, async (req, reply) => {
   const { jpeg, who = '' } = req.body || {};          // base64 jpeg, ≤ ~200 KB
