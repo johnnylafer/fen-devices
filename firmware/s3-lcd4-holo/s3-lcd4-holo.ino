@@ -271,9 +271,12 @@ void scrFilm(uint32_t t) {
   }
   if (photoFB) {
     float bob = sinf(t / 700.0f) * 5;
-    int px = 80, py = 66 + (int)bob;                            // 320x320 buffer centred
-    gfx->fillRect(px - 12, py - 12, 344, 366, 0xFFFF);          // polaroid frame
-    gfx->draw16bitRGBBitmap(px, py, photoFB, 320, 320);
+    int w = (photoW > 0 && photoW <= 320) ? photoW : 320;
+    int h = (photoH > 0 && photoH <= 320) ? photoH : 320;
+    int px = 240 - w / 2, py = 210 - h / 2 + (int)bob;          // centred on the real size
+    gfx->fillRect(px - 12, py - 12, w + 24, h + 46, 0xFFFF);    // polaroid frame fits the pic
+    for (int y = 0; y < h; y++)                                  // row-wise blit (buffer stride 320)
+      gfx->draw16bitRGBBitmap(px, py + y, photoFB + y * 320, w, 1);
     holoText("from the con floor!", 116, 420, 2, t);
   } else {
     float b1 = sinf(t / 700.0f) * 7, b2 = sinf(t / 700.0f + 2.1f) * 7;
