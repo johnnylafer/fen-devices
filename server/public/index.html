@@ -193,9 +193,9 @@ $('photo').onchange = async e=>{
   await new Promise((ok,ko)=>{img.onload=ok; img.onerror=()=>ko(new Error('decode'))}).catch(()=>{$('photostat').textContent='could not read that image';});
   if(!img.width){ return; }
   const S = 320, c = document.createElement('canvas');
-  const sc = Math.min(S/img.width, S/img.height);
-  c.width = Math.round(img.width*sc); c.height = Math.round(img.height*sc);
-  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  c.width = S; c.height = S;                      // square: centre-crop (cover)
+  const side = Math.min(img.width, img.height);
+  c.getContext('2d').drawImage(img, (img.width-side)/2, (img.height-side)/2, side, side, 0, 0, S, S);
   const jpeg = c.toDataURL('image/jpeg', 0.72);
   $('photostat').textContent = 'sending…';
   const r = await fetch('/api/photo',{method:'POST',headers:{'Content-Type':'application/json'},
