@@ -236,9 +236,11 @@ void fetchPhoto() {
       if (buf) {
         WiFiClient *s = http.getStreamPtr();
         int got = 0;
-        while (got < len && http.connected()) {
-          int r = s->readBytes(buf + got, len - got);
-          if (r <= 0) break; got += r;
+        uint32_t deadline = millis() + 10000;      // ride out TLS record boundaries
+        while (got < len && millis() < deadline) {
+          int av = s->available();
+          if (av > 0) { int r = s->read(buf + got, av < (len-got) ? av : (len-got)); if (r > 0) got += r; }
+          else delay(10);
         }
         photoDbg = String("got") + got + "/" + len;
         if (got == len) {
