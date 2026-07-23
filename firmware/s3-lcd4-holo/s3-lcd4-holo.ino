@@ -207,7 +207,8 @@ int photoW = 0, photoH = 0;
 long long photoSeen = 0;                    // last photoTs shown (64-bit! epoch-ms overflows long)
 bool firstSync = true;                      // suppress pop-ups on the boot-time sync
 String pollDbg = "no poll yet";
-String photoDbg = "-";             // shown small on the MESSAGES screen
+String photoDbg = "-";
+bool photoPending=false, photoPopup=false;             // shown small on the MESSAGES screen
 JPEGDEC jpegDec;
 int JPEGDraw(JPEGDRAW *pDraw) {
   if (!photoFB) return 1;
@@ -226,7 +227,9 @@ void fetchPhoto() {
   WiFiClientSecure client; client.setInsecure();
   HTTPClient http; http.setTimeout(6000);
   if (!http.begin(client, String("https://") + HUB_HOST + "/photo.jpg")) return;
-  if (http.GET() == 200) {
+  int pc = http.GET();
+  if (pc != 200) photoDbg = String("http") + pc;
+  if (pc == 200) {
     int len = http.getSize();
     if (len > 0 && len < 260000) {
       uint8_t *buf = (uint8_t*)heap_caps_malloc(len, MALLOC_CAP_SPIRAM);
@@ -415,13 +418,10 @@ void poll() {
         lastMsg = nm; lastMsgFrom = nf;
         long long pts = doc["photoTs"].as<long long>();
         bool newPhoto = (pts > 0 && pts != photoSeen);
-        if (newPhoto) { photoSeen = pts; fetchPhoto(); }
+        if (newPhoto) { photoSeen = pts; photoPending = true; photoPopup = !firstSync; }
         pollDbg = String("ok b:") + nb + " m:" + nm.length() + " p:" + (long)(pts % 100000) + " f:" + photoDbg;
         // live pop-ups (not on the boot-time sync)
-        if (!firstSync) {
-          if (newPhoto && photoFB) wipeTo(3);
-          else if (newMsg) wipeTo(7);
-        }
+        if (!firstSync && newMsg && !newPhoto) wipeTo(7);
         firstSync = false;
       } else pollDbg = String("json err: ") + err.c_str();
     } else pollDbg = String("http ") + code;
@@ -503,5 +503,7 @@ void loop() {
   }
 
   if (millis() - lastPoll > 4000) { lastPoll = millis(); poll(); }
+  if (photoPending) { photoPending = false; fetchPhoto();   // separate TLS session, after poll closed
+    if (photoPopup && photoFB) { photoPopup = false; wipeTo(3); } }
   render();                                   // continuous ~30 fps
 }
