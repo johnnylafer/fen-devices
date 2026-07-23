@@ -204,7 +204,9 @@ void scrStickers(uint32_t t) {
 // --- live photo wall: people post pics from the PWA, they land here ---
 uint16_t *photoFB = nullptr;                // 320x320 decode target
 int photoW = 0, photoH = 0;
-long photoSeen = 0;                         // last photoTs shown
+long long photoSeen = 0;                    // last photoTs shown (64-bit! epoch-ms overflows long)
+bool firstSync = true;                      // suppress pop-ups on the boot-time sync
+String pollDbg = "no poll yet";             // shown small on the MESSAGES screen
 JPEGDEC jpegDec;
 int JPEGDraw(JPEGDRAW *pDraw) {
   if (!photoFB) return 1;
@@ -355,6 +357,8 @@ void scrMsg(uint32_t t) {
     gfx->setTextSize(2); gfx->setTextColor(C_GOLD);
     gfx->setCursor(40, 396); gfx->print("- "); gfx->print(lastMsgFrom);
   }
+  gfx->setTextSize(1); gfx->setTextColor(0x39E7);   // tiny sync debug line
+  gfx->setCursor(16, 448); gfx->print(pollDbg);
 }
 
 // =====================================================================
@@ -390,19 +394,35 @@ void poll() {
   WiFiClientSecure client; client.setInsecure();
   HTTPClient http; http.setTimeout(3500);
   if (http.begin(client, String("https://") + HUB_HOST + "/api/poll?device=" DEVICE_ID "&fw=" FW_VER)) {
-    if (http.GET() == 200) {
+    int code = http.GET();
+    if (code == 200) {
+      String body = http.getString();
       JsonDocument doc;
-      if (!deserializeJson(doc, http.getString())) {
-        long nb = doc["boops"] | -1;
+      DeserializationError err = deserializeJson(doc, body);
+      if (!err) {
+        long nb = doc["boops"] | -1L;
         if (nb != boopTotal) { if (boopTotal >= 0) burst = 1.0f; boopTotal = nb; }
-        lastMsgFrom = (const char*)(doc["msg"]["from"] | "");
-        lastMsg = (const char*)(doc["msg"]["text"] | "");
-        long pts = doc["photoTs"] | 0;
-        if (pts > 0 && pts != photoSeen) { photoSeen = pts; fetchPhoto(); }
-      }
-    }
+        String nm = "", nf = "";
+        if (!doc["msg"].isNull()) {
+          nm = String((const char*)(doc["msg"]["text"] | ""));
+          nf = String((const char*)(doc["msg"]["from"] | ""));
+        }
+        bool newMsg = (nm.length() && nm != lastMsg);
+        lastMsg = nm; lastMsgFrom = nf;
+        long long pts = doc["photoTs"].as<long long>();
+        bool newPhoto = (pts > 0 && pts != photoSeen);
+        if (newPhoto) { photoSeen = pts; fetchPhoto(); }
+        pollDbg = String("ok b:") + nb + " m:" + nm.length() + " p:" + (long)(pts % 100000);
+        // live pop-ups (not on the boot-time sync)
+        if (!firstSync) {
+          if (newPhoto && photoFB) wipeTo(3);
+          else if (newMsg) wipeTo(7);
+        }
+        firstSync = false;
+      } else pollDbg = String("json err: ") + err.c_str();
+    } else pollDbg = String("http ") + code;
     http.end();
-  }
+  } else pollDbg = "begin fail";
 }
 
 void sendBoop() {
