@@ -122,8 +122,7 @@ app.post('/api/boop', async (req) => {
 
 // send a message to a device screen (from the PWA)
 app.post('/api/message', async (req, reply) => {
-  const { device = null, text, from = 'Fen', key } = req.body || {};
-  if (key !== ADMIN_KEY) return reply.code(401).send({ error: 'bad key' });
+  const { device = null, text, from = 'Fen' } = req.body || {};   // open to everyone
   if (!text) return reply.code(400).send({ error: 'text required' });
   q.addMsg.run(device, String(text).slice(0, 200), String(from).slice(0, 40), Date.now());
   const payload = { type: 'message', text: String(text).slice(0, 200), from: String(from).slice(0, 40), device };

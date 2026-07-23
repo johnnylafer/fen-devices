@@ -108,7 +108,7 @@
     <select id="target"><option value="">all devices</option></select>
     <button class="send" id="send">Send ✨</button>
   </div>
-  <div class="row"><input class="key" id="key" type="password" placeholder="admin key"></div>
+  <input class="key" id="key" type="hidden">
 </div>
 
 <div class="card">
@@ -118,6 +118,7 @@
     <button class="send" style="flex:1" onclick="document.getElementById('photo').click()">Pick / take a photo</button>
   </div>
   <div id="photostat" style="font-size:12px;color:var(--dim);margin-top:8px"></div>
+  <img id="lastphoto" src="/photo.jpg" onerror="this.style.display='none'" style="width:100%;border-radius:12px;margin-top:10px">
 </div>
 
 <div class="card">
@@ -167,6 +168,7 @@ function connect(){
       feed(`<b>boop</b> ${m.who||'someone'} ${m.device?('on '+m.device):''}`);
       api('/api/stats').then(renderStats); }
     if(m.type==='message') feed(`<b>msg</b> "${m.text}" → ${m.device||'all'}`);
+    if(m.type==='photo'){ feed(`<b>photo</b> 📸 from ${m.who||'someone'}`); $('lastphoto').src='/photo.jpg?'+m.ts; $('lastphoto').style.display='block'; toast('photo landed 📸'); }
   };
 }
 connect();
@@ -179,9 +181,8 @@ $('boop').onclick = async ()=>{
 };
 $('send').onclick = async ()=>{
   const r = await fetch('/api/message',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({device:$('target').value||null,text:$('msg').value,key:$('key').value})});
-  if(r.ok){ toast('sent ✨'); $('msg').value=''; localStorage.setItem('fenkey',$('key').value); }
-  else toast(r.status===401?'wrong key 🔒':'error');
+    body:JSON.stringify({device:$('target').value||null,text:$('msg').value,from:$('who').value||'anon'})});
+  if(r.ok){ toast('sent ✨'); $('msg').value=''; } else toast('error');
 };
 $('key').value = localStorage.getItem('fenkey')||'';
 $('photo').onchange = async e=>{
